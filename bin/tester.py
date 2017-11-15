@@ -62,3 +62,16 @@ class Tester:
 			return p_value, rg
 		else:
 			return False
+	def kolmogorov_smirnov(self, counts):
+		'''
+		description
+		
+		Inputs
+		------
+		
+		Outputs
+		-------
+		
+		'''
+		d, pvalue = stats.kstest(counts, 'norm')
+		return d, pvalue

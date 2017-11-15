@@ -1,0 +1,137 @@
+#!/usr/bin/env python
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+__author__ 		= "Joel Boyd"
+__copyright__ 	= "Copyright 2017"
+__credits__ 	= ["Joel Boyd"]
+__license__ 	= "GPL3"
+__maintainer__ 	= "Joel Boyd"
+__email__ 		= "joel.boyd near uq.net.au"
+__status__ 		= "Development"
+__version__ 	= "0.0.1"
+###############################################################################
+
+# System imports
+import argparse
+import logging
+import sys
+import os
+
+# Local imports
+from run import Run
+
+###############################################################################
+
+debug={1:logging.CRITICAL,
+       2:logging.ERROR,
+       3:logging.WARNING,
+       4:logging.INFO,
+       5:logging.DEBUG}
+
+###############################################################################
+      
+class CustomHelpFormatter(argparse.HelpFormatter):
+	
+    def _split_lines(self, text, width):
+        return text.splitlines()
+    
+description = u"""        _      _            _   __  __ 
+       | |    | |          | | |  \/  |
+     __| | ___| |_ ___  ___| |_| \  / |
+    / _` |/ _ \ __/ _ \/ __| __| |\/| |
+   | (_| |  __/ ||  __/ (__| |_| |  | |
+    \__,_|\___|\__\___|\___|\__|_|  |_|
+  ---------------------------------------
+      Authors: J. Boyd, B. Woodcroft
+
+"""
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description=description,
+									 formatter_class=argparse.RawTextHelpFormatter)
+	parser.add_argument('--version', action='version', version='detectM v%s' % __version__)
+
+
+	parser_input_options = parser.add_argument_group('Input options')	
+	parser_input_options.add_argument('--bam',
+						type = str,
+						required = True,
+						help = 'Input BAM file')
+	parser_input_options.add_argument('--gff',
+						type = str,
+						required = True,
+						help = 'Input GFF file')
+
+	parser_output_options = parser.add_argument_group('Output options')
+	parser_output_options.add_argument('--output_directory',
+						type = str,
+						default = False,
+						help = 'Output directory')
+	parser_output_options.add_argument('--log',
+						type = str,
+						default = False,
+						help = 'Output logging information to file')
+	parser_output_options.add_argument('--verbosity',
+						type = int,
+						default = 4,
+						help = '1 - 5, 1 being silent, 5 being noisy indeed. Default = 4')
+	parser_output_options.add_argument('--force',
+						action = 'store_true',
+						default = False,
+						help = 'Overwrite previous run')
+	
+	parser_runtime_options = parser.add_argument_group('Runtime options')
+	parser_runtime_options.add_argument('--forward_reads_only',
+						action = 'store_true',
+						default = False,
+						help = 'Only consider forward reads')
+	parser_runtime_options.add_argument('--ignore_directions',
+						action = 'store_true',
+						default = False,
+						help = 'Ignore directionality, give overall coverage (Default: Differentiate between directions)')
+	parser_runtime_options.add_argument('--measure_type',
+						type = str,
+						default = Run.COUNT_TYPE_COVERAGE,
+						help = 'What to count for each gene (Options: %s; Default: %s)' \
+									% (', '.join(Run.COUNT_TYPES), Run.COUNT_TYPE_COVERAGE))
+	parser_runtime_options.add_argument('--accepted_feature_types',
+						type = str,
+						nargs = '+',
+						default = Run.FEATURE_TYPES,
+						help = 'Print only these feature type(s) (Options: %s; Default: All)' \
+									% (', '.join(Run.FEATURE_TYPES)))
+	parser_runtime_options.add_argument('--cutoff',
+						type = float,
+						default = 0.05,
+						help = 'pvalue cutoff for the binomial test (Default: 0.05).')
+	parser_runtime_options.add_argument('--null',
+						type = str,
+						default = Run.NULL_TYPE_TWO_SIDED,
+						help = 'Null hypothesis for the biomial test (Options: %s; Default: two-sided)' \
+									% (', '.join(Run.NULL_TYPES)))
+	parser_runtime_options.add_argument('--rl',
+						type = int,
+						default = 100,
+						help = 'Average transcriptome read length (Default: 100)')
+
+	args = parser.parse_args()
+
+	if not args.log:
+		args.log = os.path.join('detectm.log')
+
+	r = Run()
+	r.main(args, sys.argv)

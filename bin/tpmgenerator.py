@@ -37,105 +37,37 @@ __version__     = "0.0.1"
 
 class TPMGenerator:
 
-    def parse_read_lengths(self, lengths):
-        d = {}
-        for line in open(lengths):
-            sample, rl = line.strip().split('\t')
-            d[sample] = float(rl)
-        return d
-
-    def get_t(self, feature_dict, rl):
-        
-        T_f = 0
-        T_r = 0
+    def get_t(self, t_list, rl):
         T = 0
+        for feature in t_list:
+            rg, flg = feature
+            T += (float(rg)*float(rl))/float(flg)
+        return T
 
-        forward_all = float(sum([x[0] for x in feature_dict.values()]))
-        reverse_all = float(sum([x[1] for x in feature_dict.values()]))
+    def main(self, dirseq_output, rl, output_file):
 
-        for gene, features in feature_dict.items():
-            T_f += (features[0]*rl)/features[2]
-            T_r += (features[1]*rl)/features[2]
-            T += ((features[1] + features[0])*rl)/features[2]
-            features.append( str(features[0] / forward_all) )
-            features.append( str(features[1] / reverse_all) )
-            feature_dict[gene] = features
-
-        return T_f, T_r, T, feature_dict
-
-    def main(self, dirseq_file, lengths, sample):
-
-        read_lengths    = self.parse_read_lengths(lengths)
-        rl              = read_lengths[sample]
-        dirseq_io       = open(dirseq_file)
-        headers         = dirseq_io.readline().split()
-        feature_dict    = {}
+        t_list = []
         
-        for idx, line in enumerate(dirseq_io):
-            
-            contig, type, start, end, strand, rg_f, rg_r, annotation \
-                = line.strip().split('\t')
-            genome \
-                = '_'.join(contig.split('_')[:2])
+        for idx, line in enumerate(dirseq_output):
+            if idx == 0:
+                header = line[:10] + ['TPM', 'feature_length'] + [line[10]]
+                continue
+
+            gene, contig, type, start, end, strand, rg_f, rg_r, pvalue, rg, directionality, annotation \
+                = line
             flg \
                 = float(end) - float(start) 
-            feature_dict[contig + '_' + str(idx)] \
-                = [float(rg_f), float(rg_r), float(flg), 
-                   annotation, start, end, contig, genome]
+            t_list.append([float(rg), float(flg)])
         
-        T_f, T_r, T, feature_dict = self.get_t(feature_dict, rl)
+        T = self.get_t(t_list, rl)
 
-        # Print header
-        print '\t'.join(['gene_id',
-                         'description',
-                         'start_pos',
-                         'end_pos',
-                         'contig',
-                         'genome',
-                         'sample', 
-                         'count_forward',
-                         'count_reverse',
-                         'perc_forward',
-                         'perc_reverse',
-                         'TPM_forward_specific',
-                         'TPM_reverse_specific',
-                         'TPM_forward',
-                         'TPM_reverse',
-                         'directionality',
-                         'group'])
-
-        
-        for gene, features in feature_dict.items():
-            tpm_f_specific = (features[0]*rl*1e6)/(features[2]*T_f)
-            tpm_r_specific = (features[1]*rl*1e6)/(features[2]*T_r)
-            tpm_f = (features[0]*rl*1e6)/(features[2]*T)
-            tpm_r = (features[1]*rl*1e6)/(features[2]*T)
-            if(tpm_r>0 or tpm_f>0):    
-                directionality = (tpm_f/sum([tpm_f, tpm_r])) * 100
-
-                for i in range(len(bin_list)):
-                    if(directionality>bin_list[i] and directionality<=bin_list[i+1]):
-                        group = str(bin_list[i]) +'-'+ str(bin_list[i+1])
-                        break
-                    elif directionality==0.0:
-                        group='0-5'
-                        break
-                # Print output line
-                print '\t'.join([gene,
-                                 features[3],
-                                 features[4],
-                                 features[5],
-                                 features[6],
-                                 features[7],
-                                 sample,
-                                 str(features[0]),
-                                 str(features[1]),
-                                 features[8],
-                                 features[9],
-                                 str(tpm_f_specific),
-                                 str(tpm_r_specific),
-                                 str(tpm_f),
-                                 str(tpm_r),
-                                 str(directionality),
-                                 group])
-
+        with open(output_file, 'w') as out_io:
+            # Print header
+            out_io.write('\t'.join(header) + '\n')
+            for dirseq_line, t_line in zip(dirseq_output[1:], t_list):
+                if dirseq_line[0]=='gene':continue
+                tpm = (float(line[9]) * rl * 10e6)/(t_line[1]*T)
+                if(tpm>0):    
+                    output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1]), dirseq_line[10]]
+                    # Print output line
+                    out_io.write('\t'.join(output_line) + '\n')
