@@ -26,7 +26,7 @@ __version__ 	= "0.0.1"
 
 ###############################################################################
 
-# Imports
+# System imports
 import logging
 import os
 import shutil
@@ -62,8 +62,8 @@ class Run:
 	NULL_TYPES 			= [NULL_TYPE_TWO_SIDED, NULL_TYPE_GREATER, NULL_TYPE_LESS]
 
 	# Output files
-	TPM_FILE 			= 'findm_tpm.tsv'
-	DIST_FILE			= 'directionality_distribution_results.tsv'
+	DIST_FILE			= 'detectm_quality.tsv'
+	TPM_FILE 			= 'detectm_tpm_scores.tsv'
 
 	def _logging_setup(self, args):
 		'''
@@ -72,13 +72,8 @@ class Run:
 		
 		Inputs
 		------
-		
-		Outputs
-		-------
-		
+		args    - object. Argparse object
 		'''
-		if args.verbosity not in range(1, 6):
-			raise Exception("Logging verbosity must be a positive integer between 1 and 5.")
 
 		logger = logging.getLogger('')
 		logger.setLevel(debug[args.verbosity])
@@ -102,6 +97,10 @@ class Run:
 		args    - object. Argparse object
 		'''
 
+		# Check logging level is valid
+		if args.verbosity not in range(1, 6):
+			raise Exception("Logging verbosity must be a positive integer between 1 and 5.")
+		
 		# Set a working directory name, if none is specified
 		if not args.output_directory:
 			args.output_directory = '%s-detectm_output' % (time.strftime("%Y-%m-%d_%H-%M"))
@@ -115,7 +114,6 @@ class Run:
 					os.remove(args.output_directory)
 			else:
 				raise Exception("File '%s' exists." % args.output_directory)
-
 		os.mkdir(args.output_directory)  
 
 		if(args.ignore_directions and 

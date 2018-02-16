@@ -29,6 +29,7 @@ __version__ 	= "0.0.1"
 # Imports
 from scipy import stats
 import os
+import logging
 
 ###############################################################################
 
@@ -73,5 +74,10 @@ class Tester:
 		-------
 		
 		'''
-		d, pvalue = stats.kstest(counts, 'norm')
-		return d, pvalue
+		if any(counts):
+			d, pvalue = stats.kstest(counts, 'norm')
+			return d, pvalue
+		else:
+			logging.warning('No results for Kolmogorov-Smirnov test')
+			return 'NA', 'NA'
+			

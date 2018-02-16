@@ -66,8 +66,11 @@ class TPMGenerator:
             out_io.write('\t'.join(header) + '\n')
             for dirseq_line, t_line in zip(dirseq_output[1:], t_list):
                 if dirseq_line[0]=='gene':continue
-                tpm = (float(line[9]) * rl * 10e6)/(t_line[1]*T)
-                if(tpm>0):    
+                flg     = float(dirseq_line[4]) - float(dirseq_line[3]) 
+                top     = float(dirseq_line[9]) * rl * 1e6
+                bottom  = flg * T
+                tpm     = top / bottom
+                if(tpm>0):
                     output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1]), dirseq_line[10]]
                     # Print output line
                     out_io.write('\t'.join(output_line) + '\n')

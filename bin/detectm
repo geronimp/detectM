@@ -35,14 +35,6 @@ import os
 from run import Run
 
 ###############################################################################
-
-debug={1:logging.CRITICAL,
-       2:logging.ERROR,
-       3:logging.WARNING,
-       4:logging.INFO,
-       5:logging.DEBUG}
-
-###############################################################################
       
 class CustomHelpFormatter(argparse.HelpFormatter):
 	
@@ -64,7 +56,6 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description=description,
 									 formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument('--version', action='version', version='detectM v%s' % __version__)
-
 
 	parser_input_options = parser.add_argument_group('Input options')	
 	parser_input_options.add_argument('--bam',

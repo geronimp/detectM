@@ -40,7 +40,7 @@ class DirSeq:
 		https://github.com/wwood/dirseq
 	
 	I've tried to be as faithful possible to the original, besides small 
-	changes reflecting the differences between ruby and python. If there are 
+	changes due to the differences between ruby and python. If there are 
 	any bugs, they are probably the result of my lack of understanding of Ruby. 
 	'''
 	COUNT_TYPE_COVERAGE = 'coverage'
@@ -52,15 +52,19 @@ class DirSeq:
 		return float(sum(covs)) / num_covs
 
 	def _get_covs(self, cov_lines, accepted_feature_types):
+
 		feature_to_covs = {}
 		previous_feature = None
 		covs = []
 		num_covs = 0
-		for line in cov_lines:
-			sline = line.split("\t")
-			if sline[0]=='all': break
-			feat = sline[8]
 
+		for line in cov_lines:
+			
+			sline = line.split("\t")
+
+			if sline[0]=='all': break
+
+			feat = sline[8]
 			feature_type = sline[2]
 
 			if feature_type not in accepted_feature_types:
@@ -77,6 +81,7 @@ class DirSeq:
 						coverage = str(self._calculate_cov(covs, num_covs))
 					else:
 						coverage = '0'
+					
 					feature_to_covs[previous_feature] \
 						= [sline[8][3:].split(';')[0], # Gene
 						   sline[0], # Contig
@@ -86,6 +91,7 @@ class DirSeq:
 						   sline[6], # Strand
 						   coverage,
 						   description]
+
 			if len(sline) == 13:
 				num = int(sline[10])
 				covs.append(num*int(sline[9]))
@@ -115,6 +121,7 @@ class DirSeq:
 			logging.info('Command: %s' % (cmd))
 			covs_lines_initial = subprocess.check_output(cmd, shell=True).strip().split('\n')
 			covs_initial.append(self._get_covs(covs_lines_initial, accepted_feature_types))
+
 		covs = covs_initial[0]
 		if len(covs_initial) > 1:
 			for key, coverage in covs_initial[1].items():
@@ -125,6 +132,7 @@ class DirSeq:
 
 	def _compile_output(self, covs_fwd, covs_rev, cutoff, null, 
 			   ignore_directions, measure_type, distribution_output): 
+		
 		logging.info('Compiling results')
 		
 		t=Tester()
@@ -132,6 +140,7 @@ class DirSeq:
 		header = ['gene', 'contig', 'type', 'start', 'end', 'strand']
 		directionality_list_all = []
 		directionality_list_sig = []
+		
 		if ignore_directions:
 			header.append('average_coverage')
 		else:
@@ -142,10 +151,12 @@ class DirSeq:
 				header.append('forward_read_count')
 				header.append('reverse_read_count')
 			header += ['pvalue', 'normalized_read_count', 'directionality']
+		
 		header.append('annotation')
 
 		output_lines = []
 		output_lines.append(header)
+		
 		if ignore_directions:
 			for feature, forward_line in covs_fwd.iteritems():
 				output_line = forward_line[:6] + [forward_line[6], feature]
@@ -155,11 +166,14 @@ class DirSeq:
 				reverse_line = covs_rev[feature]
 				forward_count = float(forward_line[6])	
 				reverse_count = float(reverse_line[6])
-				directionality = forward_count / (forward_count + reverse_count)
-
+				count_sum = (forward_count + reverse_count)
+				if count_sum>0:
+					directionality = forward_count / count_sum
+				else:
+					directionality = 0
+				directionality_list_all.append(directionality)
 				result = t.binom(float(forward_count), float(reverse_count), cutoff, null)
 				if result:
-					directionality_list_all.append(directionality)
 					pvalue, normalized_read_count = result
 					if pvalue<=cutoff:
 						directionality_list_sig.append(directionality)
@@ -183,7 +197,6 @@ class DirSeq:
 			out_io.write('All distribution result\t' + '\t'.join([str(x) for x in directionality_all_result]) + '\n')
 			out_io.write('Passed distribution result\t' + '\t'.join([str(x) for x in directionality_sig_result]) + '\n')
 
-
 	def main(self, bam, gff, forward_reads_only, ignore_directions, 
 			 measure_type, accepted_feature_types, cutoff, null,
 			 distribution_output):
@@ -198,12 +211,15 @@ class DirSeq:
 		
 		'''
 
+		# Removing FASTA component from GFF file
+		logging.info('Removing FASTA component from GFF file')
 		nofastagff = tempfile.NamedTemporaryFile(suffix='.gff')
 		cmd = "sed '/^##FASTA$/,$d' %s > %s" \
 					% (gff, nofastagff.name)
 		logging.info('Command: %s' % (cmd))
 		subprocess.call(cmd, shell=True)
 
+		# Check for the existance of a BAM index file
 		bam_index = bam + self.BAM_INDEX_SUFFIX
 		if not os.path.isfile(bam_index):
 			raise Exception('Bam index file does not exist. Please index the BAM file')
@@ -215,6 +231,22 @@ class DirSeq:
 		logging.info('Command: %s' % (cmd))
 		subprocess.call(cmd, shell=True)
 
+		# Identifying contigs in feature file but not in BAM file
+		logging.info('Finding contigs with no coverage')
+		bam_contig_set = set()
+		for line in open(bam_contigs.name):
+			bam_contig_set.add(line.split()[0])
+		gff_contig_set = []
+		lengths		   = {}
+		for line in open(gff):
+			if line.startswith('##sequence-region'):
+				_, contig, _, length = line.strip().split()
+				gff_contig_set.append(contig)
+				lengths[contig] = length
+		coverageless_contigs = [contig for contig in gff_contig_set 
+								if contig not in bam_contig_set]
+
+		# Identifying contigs that have no features in the GFF file
 		logging.info('Finding featureless contigs')
 		cmd = "grep -v '^#' %s | cut -f1 | sort | uniq | grep -vFw -f /dev/stdin %s | cut -f1" % (gff, bam_contigs.name)
 		logging.info('Command: %s' % (cmd))
@@ -222,6 +254,12 @@ class DirSeq:
 				 			   if(x!=self.STAR and x!='')]
 		logging.info('Found %i featureless contigs' % len(featureless_contigs))
 		
+		# Filling in missing contigs
+		with open(bam_contigs.name, "a") as bam_contigs_io:
+			for contig in coverageless_contigs:
+				bam_contigs_io.write('\t'.join([contig, lengths[contig]]) + '\n')
+		
+		# Create dummy entries for featureless contigs and create a "full" GFF file
 		dummy_lines = []
 		for featureless_contig in featureless_contigs:
 			dummy_lines.append([featureless_contig,
@@ -233,13 +271,11 @@ class DirSeq:
 								'+',
 								'0',
 								"ID=%s_dummy_feature" % featureless_contig])
-		
 		sorted_gff_file = tempfile.NamedTemporaryFile(suffix='.gff')
 		with tempfile.NamedTemporaryFile(suffix='.gff') as extra_features_file:
 			for dummy_line in dummy_lines:
 				extra_features_file.write('\t'.join(dummy_line) + '\n')
 			extra_features_file.flush()
-			
 			cmd = "cat %s %s | bedtools sort -i /dev/stdin -faidx %s > %s" % (extra_features_file.name, nofastagff.name, bam_contigs.name, sorted_gff_file.name)
 			logging.info('Command: %s' % (cmd))
 			subprocess.call(cmd, shell=True)
