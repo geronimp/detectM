@@ -29,8 +29,11 @@ import tempfile
 import os
 import logging
 import subprocess
+import csv
 
 from tester import Tester
+from StringIO import StringIO
+from collections import defaultdict
 
 ###############################################################################
 
@@ -53,14 +56,17 @@ class DirSeq:
 
 	def _get_covs(self, cov_lines, accepted_feature_types):
 
-		feature_to_covs = {}
-		previous_feature = None
-		covs = []
-		num_covs = 0
+		previous_feature 	= None
+		covs 				= []
+		num_covs 			= 0
+		removed 			= set()
+		reader 				= csv.reader(StringIO(cov_lines), delimiter='\t')
+		keys 				= [x[8] for x in csv.reader(StringIO(cov_lines), delimiter='\t') if not x[0]=="all"]
+		total 				= float(len(keys))
+		feature_to_covs 	= defaultdict.fromkeys(keys)
 
-		for line in cov_lines:
-			
-			sline = line.split("\t")
+		for idx, sline in enumerate(reader):
+			logging.debug('Parsing output [%f%% complete]' % ((idx / total)*100))
 
 			if sline[0]=='all': break
 
@@ -68,86 +74,89 @@ class DirSeq:
 			feature_type = sline[2]
 
 			if feature_type not in accepted_feature_types:
+				if feat not in removed:
+					del feature_to_covs[feat]
+					removed.add(feat)
 				logging.debug('Skipping feature as it is of type %s' % feature_type)
 				continue
-			if 'product' in sline[-2]:
-				description = sline[-2].split(';')[-1].split('=')[1]
+			if 'product' in sline[8]:
+				description = sline[8].split(';')[-1].split('=')[1]
 			else:
 				description = 'None'
 
-			if previous_feature:
-				if feat != previous_feature:
-					if num_covs>0:
-						coverage = str(self._calculate_cov(covs, num_covs))
-					else:
-						coverage = '0'
-					
-					feature_to_covs[previous_feature] \
-						= [sline[8][3:].split(';')[0], # Gene
-						   sline[0], # Contig
-						   sline[2], # Type
-						   sline[3], # Start
-						   sline[4], # Stop
-						   sline[6], # Strand
-						   coverage,
-						   description]
-
 			if len(sline) == 13:
 				num = int(sline[10])
-				covs.append(num*int(sline[9]))
-				num_covs += num
+				cov = num*int(sline[9])
 			elif len(sline) == 10:
-				covs.append(int(sline[9]))
-				num_covs += 1
+				cov = int(sline[9])
 			else:
 				raise Exception("Unexpected bedtools output line: %s" % line)
-			previous_feature=feat
+
+			if(feature_to_covs[feat]!=None):
+				feature_to_covs[feat][6].append(cov)
+			else:				
+				feature_to_covs[feat] \
+					= [sline[8][3:].split(';')[0], # Gene
+					   sline[0], # Contig
+					   sline[2], # Type
+					   sline[3], # Start
+					   sline[4], # Stop
+					   sline[6], # Strand
+					   [cov],
+					   description]
+		logging.info('Parsing output [%f%% complete]' % ((total / total)*100))
 		
-		if sline[0]!='all':
-			feature_to_covs[previous_feature] \
-				= [sline[8][3:].split(';')[0], # Gene
-							   sline[0], # Contig
-							   sline[2], # Type
-							   sline[3], # Start
-							   sline[4], # Stop
-							   sline[6], # Strand
-							   str(self._calculate_cov(covs, num_covs)),
-							   description]
+		for key in set(keys):
+			if key in feature_to_covs:
+				feature_to_covs[key][6] = self._calculate_cov(feature_to_covs[key][6], len(feature_to_covs[key][6]))
+		
 		return feature_to_covs
 
 	def _command_to_parsed(self, cmds, accepted_feature_types):
+		
 		covs_initial = []
+		
 		for cmd in cmds:
 			logging.info('Command: %s' % (cmd))
-			covs_lines_initial = subprocess.check_output(cmd, shell=True).strip().split('\n')
+			covs_lines_initial = subprocess.check_output(cmd, shell=True).strip()
 			covs_initial.append(self._get_covs(covs_lines_initial, accepted_feature_types))
-
-		covs = covs_initial[0]
+			
+		pooled_covs = {}
+		
 		if len(covs_initial) > 1:
-			for key, coverage in covs_initial[1].items():
-				coverage[6] = str(float(covs[key][6]) + float(coverage[6]))
-				covs_initial[1][key] = coverage
-
-		return covs
+			for key, entry in covs_initial[0].items():
+				pooled_coverage = str(float(covs_initial[1][key][6]) + float(entry[6]))	
+				
+				pooled_covs[key] = [covs_initial[1][key][0],
+									covs_initial[1][key][1],
+									covs_initial[1][key][2],
+									covs_initial[1][key][3],
+									covs_initial[1][key][4],
+									covs_initial[1][key][5],
+									str(pooled_coverage),
+									covs_initial[1][key][7]]
+		else:
+			pooled_covs = covs_initial[0]
+		return pooled_covs
 
 	def _compile_output(self, covs_fwd, covs_rev, cutoff, null, 
 			   ignore_directions, measure_type, distribution_output): 
 		
 		logging.info('Compiling results')
 		
-		t=Tester()
-		
-		header = ['gene', 'contig', 'type', 'start', 'end', 'strand']
+		t 		= Tester()
+		total 	= float(len(covs_fwd))
+		header 	= ['gene', 'contig', 'type', 'start', 'end', 'strand']
 		directionality_list_all = []
 		directionality_list_sig = []
 		
 		if ignore_directions:
 			header.append('average_coverage')
 		else:
-			if measure_type == self.COUNT_TYPE_COUNT:
+			if measure_type == self.COUNT_TYPE_COVERAGE:
 				header.append('forward_average_coverage')
 				header.append('reverse_average_coverage')
-			elif measure_type == self.COUNT_TYPE_COVERAGE:
+			elif measure_type == self.COUNT_TYPE_COUNT:
 				header.append('forward_read_count')
 				header.append('reverse_read_count')
 			header += ['pvalue', 'normalized_read_count', 'directionality']
@@ -162,7 +171,8 @@ class DirSeq:
 				output_line = forward_line[:6] + [forward_line[6], feature]
 				output_lines.append(output_line)
 		else:
-			for feature, forward_line in covs_fwd.iteritems():
+			for idx, (feature, forward_line) in enumerate(covs_fwd.iteritems()):
+				logging.debug('Preparing output [%f%% complete]' % ((idx/total)*100))
 				reverse_line = covs_rev[feature]
 				forward_count = float(forward_line[6])	
 				reverse_count = float(reverse_line[6])
@@ -181,14 +191,15 @@ class DirSeq:
 														  str(reverse_count),
 														  str(pvalue),
 														  str(normalized_read_count),
-														  str(directionality)] + [covs_fwd.values()[1][7]]
+														  str(directionality)] + [forward_line[-1]]
 						output_lines.append(output_line)
+			
 			directionality_all_result \
 					= t.kolmogorov_smirnov(directionality_list_all)
 			directionality_sig_result \
 					= t.kolmogorov_smirnov(directionality_list_sig)
+
 			self._distribution_output(distribution_output, directionality_all_result, directionality_sig_result)
-		
 		return output_lines
 	
 	def _distribution_output(self, distribution_output, directionality_all_result, directionality_sig_result):
@@ -283,7 +294,7 @@ class DirSeq:
 		if ignore_directions:
 			cmd = "bedtools coverage -b %s -a %s -hist" % (bam, sorted_gff_file.name)
 			logging.info('Command: %s' % cmd)
-			cov_lines_fwd = subprocess.check_output(cmd, shell=True).strip().split('\n')
+			cov_lines_fwd = subprocess.check_output(cmd, shell=True).strip()
 			logging.info('Parsing coverage profiles')
 			covs_fwd = self._get_covs(cov_lines_fwd, accepted_feature_types)
 			covs_rev = None
@@ -307,17 +318,20 @@ class DirSeq:
 				% (read1_flag, bam, bam_contigs.name, sorted_gff_file.name, bedtools_type_flag)
 			cmdr2 = "samtools view -u %s %s | bedtools coverage -sorted -g %s -b /dev/stdin -a %s -S %s" \
 				% (read2_flag, bam, bam_contigs.name, sorted_gff_file.name, bedtools_type_flag)
+			
 			if forward_reads_only:
 				commands_fwd = [cmdf1]
 				commands_rev = [cmdr1]
 			else:
-				commands_fwd = [cmdf1, cmdf2]
-				commands_rev = [cmdr1, cmdr2]
+				commands_fwd = [cmdf1, cmdr2]
+				commands_rev = [cmdf2, cmdr1]
 
 			covs_fwd = self._command_to_parsed(commands_fwd, accepted_feature_types)
 			covs_rev = self._command_to_parsed(commands_rev, accepted_feature_types)
 
-		output_lines = self._compile_output(covs_fwd, covs_rev, cutoff, null, ignore_directions, measure_type, distribution_output)
+		output_lines = self._compile_output(covs_fwd, covs_rev, cutoff, null, 
+											ignore_directions, measure_type, 
+											distribution_output)
 
 		nofastagff.close()
 		bam_contigs.close()

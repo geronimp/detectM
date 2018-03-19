@@ -97,6 +97,9 @@ class Run:
 		args    - object. Argparse object
 		'''
 
+		# Coverage option is deprecated
+		if args.measure_type==self.COUNT_TYPE_COVERAGE:
+			raise Exception("'coverage' measure type has been deprecated as of 0.0.3")
 		# Check logging level is valid
 		if args.verbosity not in range(1, 6):
 			raise Exception("Logging verbosity must be a positive integer between 1 and 5.")
@@ -121,7 +124,7 @@ class Run:
 			raise Exception("ignore_directions and count_type != coverage is currently unsupported")
 
 	def main(self, args, command):
-		
+
 		self._check_general(args)
 		self._logging_setup(args)
 		
@@ -130,7 +133,8 @@ class Run:
 		ds = DirSeq()
 		tg = TPMGenerator()
 		
-		logging.info('Running Dirseq component')
+		logging.info('Running DirSeq component')
+		
 		dirseq_output_lines = ds.main(args.bam,
 									  args.gff,
 									  args.forward_reads_only,
@@ -140,11 +144,11 @@ class Run:
 									  args.cutoff,
 									  args.null,
 									  os.path.join(args.output_directory, self.DIST_FILE))
+		
+		logging.info('Calculating TPM scores')
 
-		if(args.measure_type == self.COUNT_TYPE_COUNT):
-			logging.info('Calculating TPM scores')
-			tg.main(dirseq_output_lines, # Dirseq output
-					args.rl,
-					os.path.join(args.output_directory, self.TPM_FILE))
+		tg.main(dirseq_output_lines, # Dirseq output
+				args.rl,
+				os.path.join(args.output_directory, self.TPM_FILE))
 
 		logging.info('Done')

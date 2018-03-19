@@ -45,16 +45,16 @@ class TPMGenerator:
         return T
 
     def main(self, dirseq_output, rl, output_file):
-
         t_list = []
         
         for idx, line in enumerate(dirseq_output):
             if idx == 0:
-                header = line[:10] + ['TPM', 'feature_length'] + [line[10]]
+                header = line[:10] + ['TPM', 'feature_length'] + line[10:]
                 continue
 
             gene, contig, type, start, end, strand, rg_f, rg_r, pvalue, rg, directionality, annotation \
                 = line
+
             flg \
                 = float(end) - float(start) 
             t_list.append([float(rg), float(flg)])
@@ -71,6 +71,6 @@ class TPMGenerator:
                 bottom  = flg * T
                 tpm     = top / bottom
                 if(tpm>0):
-                    output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1]), dirseq_line[10]]
+                    output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1])] + dirseq_line[10:]
                     # Print output line
                     out_io.write('\t'.join(output_line) + '\n')

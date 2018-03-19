@@ -32,6 +32,7 @@ import sys
 import os
 
 # Local imports
+import version
 from run import Run
 
 ###############################################################################
@@ -48,10 +49,10 @@ description = u"""        _      _            _   __  __
    | (_| |  __/ ||  __/ (__| |_| |  | |
     \__,_|\___|\__\___|\___|\__|_|  |_|
   ---------------------------------------
-      Authors: J. Boyd, B. Woodcroft
-
-"""
-
+     Authors: Joel Boyd, Ben Woodcroft
+     version: %s
+""" % version.__version__
+	
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description=description,
 									 formatter_class=argparse.RawTextHelpFormatter)
@@ -96,9 +97,9 @@ if __name__ == '__main__':
 						help = 'Ignore directionality, give overall coverage (Default: Differentiate between directions)')
 	parser_runtime_options.add_argument('--measure_type',
 						type = str,
-						default = Run.COUNT_TYPE_COVERAGE,
+						default = Run.COUNT_TYPE_COUNT,
 						help = 'What to count for each gene (Options: %s; Default: %s)' \
-									% (', '.join(Run.COUNT_TYPES), Run.COUNT_TYPE_COVERAGE))
+									% (', '.join(Run.COUNT_TYPES), Run.COUNT_TYPE_COUNT))
 	parser_runtime_options.add_argument('--accepted_feature_types',
 						type = str,
 						nargs = '+',
