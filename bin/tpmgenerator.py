@@ -64,9 +64,9 @@ class TPMGenerator:
         
         T = self.get_t(t_list, rl)
 
-        with open(output_file, 'w') as out_io:
+        with open(output_file, 'wb') as out_io:
             # Print header
-            out_io.write('\t'.join(header) + '\n')
+            out_io.write(b'\t'.join([str.encode(x) for x in header]) + b'\n')
       
             for dirseq_line, t_line in zip(dirseq_output[1:], t_list):
       
@@ -78,6 +78,12 @@ class TPMGenerator:
                 tpm     = top / bottom
       
                 if(tpm>0):
-                    output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1])] + dirseq_line[10:]
+                    output_line = dirseq_line[:10] + [str(str(tpm)) , str(str(t_line[1]))] + dirseq_line[10:]
+                    new_output_line = list()
+                    for b in output_line:
+                        try:
+                            new_output_line.append(str.encode(b))
+                        except:
+                            new_output_line.append(b)
                     # Print output line
-                    out_io.write('\t'.join(output_line) + '\n')
+                    out_io.write(b'\t'.join(new_output_line) + b'\n')

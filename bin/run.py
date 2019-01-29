@@ -49,7 +49,7 @@ debug={1:logging.CRITICAL,
 ###############################################################################
 
 class Run:
-	FEATURE_TYPE_CDS 	= 'CDS'
+	FEATURE_TYPE_CDS 	= b'CDS'
 	COUNT_TYPE_COVERAGE = 'coverage'
 	COUNT_TYPE_COUNT 	= 'count'
 

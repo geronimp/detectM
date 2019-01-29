@@ -105,7 +105,7 @@ if __name__ == '__main__':
 						nargs = '+',
 						default = Run.FEATURE_TYPES,
 						help = 'Print only these feature type(s) (Options: %s; Default: All)' \
-									% (', '.join(Run.FEATURE_TYPES)))
+									% (b', '.join(Run.FEATURE_TYPES)))
 	parser_runtime_options.add_argument('--cutoff',
 						type = float,
 						default = 0.05,

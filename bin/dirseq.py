@@ -62,7 +62,6 @@ class DirSeq:
 		removed 			= set()
 		reader 				= cov_lines.split(b'\n')
 		keys 				= [x.split(b'\t')[8] for x in reader if not x.split(b'\t')[0]=="all"]
-
 		total 				= float(len(keys))
 		feature_to_covs 	= defaultdict.fromkeys(keys)
 
@@ -83,12 +82,12 @@ class DirSeq:
 				
 				logging.debug('Skipping feature as it is of type %s' % feature_type)
 				continue
-			
-			if 'product' in sline[8]:
-				description = sline[8].split(';')[-1].split('=')[1]
+			if b'product' in sline[8]:
+				description = sline[8].split(b';')[-1].split(b'=')[1]
 			
 			else:
 				description = 'None'
+			
 
 			if len(sline) == 13:
 				num = int(sline[10])
@@ -105,7 +104,7 @@ class DirSeq:
 			
 			else:				
 				feature_to_covs[feat] \
-					= [sline[8][3:].split(';')[0], # Gene
+					= [sline[8][3:].split(b';')[0], # Gene
 					   sline[0], # Contig
 					   sline[2], # Type
 					   sline[3], # Start
@@ -366,7 +365,7 @@ class DirSeq:
 
 			covs_fwd = self._command_to_parsed(commands_fwd, accepted_feature_types)
 			covs_rev = self._command_to_parsed(commands_rev, accepted_feature_types)
-		import IPython ; IPython.embed()
+
 		output_lines = self._compile_output(covs_fwd, covs_rev, cutoff, null, 
 											ignore_directions, measure_type, 
 											distribution_output)
