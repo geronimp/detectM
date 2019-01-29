@@ -82,9 +82,8 @@ class DirSeq:
 				
 				logging.debug('Skipping feature as it is of type %s' % feature_type)
 				continue
-			if b'product' in sline[8]:
+			if(b'product' in sline[8] or b'annotations' in sline[8]):
 				description = sline[8].split(b';')[-1].split(b'=')[1]
-			
 			else:
 				description = 'None'
 			
@@ -102,9 +101,9 @@ class DirSeq:
 			if(feature_to_covs[feat]!=None):
 				feature_to_covs[feat][6].append(cov)
 			
-			else:				
+			else:
 				feature_to_covs[feat] \
-					= [sline[8][3:].split(b';')[0], # Gene
+					= [sline[8].split(b';')[0].split(b'=')[1], # Gene
 					   sline[0], # Contig
 					   sline[2], # Type
 					   sline[3], # Start
