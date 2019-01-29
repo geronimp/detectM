@@ -30,9 +30,9 @@ import os
 import logging
 import subprocess
 import csv
+import io
 
 from tester import Tester
-from StringIO import StringIO
 from collections import defaultdict
 
 ###############################################################################
@@ -47,7 +47,7 @@ class DirSeq:
 	any bugs, they are probably the result of my lack of understanding of Ruby. 
 	'''
 	COUNT_TYPE_COVERAGE = 'coverage'
-	COUNT_TYPE_COUNT 	= 'count'
+	COUNT_TYPE_COUNT = 'count'
 	BAM_INDEX_SUFFIX = '.bai'
 	STAR = '*'
 
@@ -57,11 +57,11 @@ class DirSeq:
 	def _get_covs(self, cov_lines, accepted_feature_types):
 
 		previous_feature 	= None
-		covs 				= []
+		covs 				= list()
 		num_covs 			= 0
 		removed 			= set()
-		reader 				= csv.reader(StringIO(cov_lines), delimiter='\t')
-		keys 				= [x[8] for x in csv.reader(StringIO(cov_lines), delimiter='\t') if not x[0]=="all"]
+		reader 				= csv.reader(io.StringIO(cov_lines), delimiter='\t')
+		keys 				= [x[8] for x in csv.reader(io.StringIO(cov_lines), delimiter='\t') if not x[0]=="all"]
 		total 				= float(len(keys))
 		feature_to_covs 	= defaultdict.fromkeys(keys)
 
@@ -114,14 +114,14 @@ class DirSeq:
 
 	def _command_to_parsed(self, cmds, accepted_feature_types):
 		
-		covs_initial = []
+		covs_initial = list()
 		
 		for cmd in cmds:
 			logging.info('Command: %s' % (cmd))
 			covs_lines_initial = subprocess.check_output(cmd, shell=True).strip()
 			covs_initial.append(self._get_covs(covs_lines_initial, accepted_feature_types))
 			
-		pooled_covs = {}
+		pooled_covs = dict()
 		
 		if len(covs_initial) > 1:
 			for key, entry in covs_initial[0].items():
@@ -147,8 +147,8 @@ class DirSeq:
 		t 		= Tester()
 		total 	= float(len(covs_fwd))
 		header 	= ['gene', 'contig', 'type', 'start', 'end', 'strand']
-		directionality_list_all = []
-		directionality_list_sig = []
+		directionality_list_all = list()
+		directionality_list_sig = list()
 		
 		if ignore_directions:
 			header.append('average_coverage')
@@ -163,7 +163,7 @@ class DirSeq:
 		
 		header.append('annotation')
 
-		output_lines = []
+		output_lines = list()
 		output_lines.append(header)
 		
 		if ignore_directions:
@@ -247,8 +247,8 @@ class DirSeq:
 		bam_contig_set = set()
 		for line in open(bam_contigs.name):
 			bam_contig_set.add(line.split()[0])
-		gff_contig_set = []
-		lengths		   = {}
+		gff_contig_set = list()
+		lengths		   = dict()
 		for line in open(gff):
 			if line.startswith('##sequence-region'):
 				_, contig, _, length = line.strip().split()
@@ -271,7 +271,7 @@ class DirSeq:
 				bam_contigs_io.write('\t'.join([contig, lengths[contig]]) + '\n')
 		
 		# Create dummy entries for featureless contigs and create a "full" GFF file
-		dummy_lines = []
+		dummy_lines = list()
 		for featureless_contig in featureless_contigs:
 			dummy_lines.append([featureless_contig,
 								'dirseq',

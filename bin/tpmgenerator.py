@@ -45,7 +45,7 @@ class TPMGenerator:
         return T
 
     def main(self, dirseq_output, rl, output_file):
-        t_list = []
+        t_list = list()
         
         for idx, line in enumerate(dirseq_output):
             if idx == 0:
