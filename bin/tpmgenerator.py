@@ -80,8 +80,11 @@ class TPMGenerator:
                 if(tpm>0):
                     output_line = dirseq_line[:10] + [str(str(tpm)) , str(str(t_line[1]))] + dirseq_line[10:]
                     new_output_line = list()
+
                     for b in output_line:
+                    
                         try:
+                    
                             new_output_line.append(str.encode(b))
                         except:
                             new_output_line.append(b)

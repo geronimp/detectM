@@ -110,11 +110,15 @@ class Run:
 
 		# Create working directory
 		if(os.path.isdir(args.output_directory) or os.path.isfile(args.output_directory)):
+
 			if args.force:
+
 				if os.path.isdir(args.output_directory):
 					shutil.rmtree(args.output_directory)
+
 				else:
 					os.remove(args.output_directory)
+
 			else:
 				raise Exception("File '%s' exists." % args.output_directory)
 		os.mkdir(args.output_directory)  
