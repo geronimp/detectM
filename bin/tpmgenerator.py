@@ -39,15 +39,18 @@ class TPMGenerator:
 
     def get_t(self, t_list, rl):
         T = 0
+        
         for feature in t_list:
             rg, flg = feature
             T += (float(rg)*float(rl))/float(flg)
+        
         return T
 
     def main(self, dirseq_output, rl, output_file):
         t_list = list()
         
         for idx, line in enumerate(dirseq_output):
+      
             if idx == 0:
                 header = line[:10] + ['TPM', 'feature_length'] + line[10:]
                 continue
@@ -64,12 +67,16 @@ class TPMGenerator:
         with open(output_file, 'w') as out_io:
             # Print header
             out_io.write('\t'.join(header) + '\n')
+      
             for dirseq_line, t_line in zip(dirseq_output[1:], t_list):
+      
                 if dirseq_line[0]=='gene':continue
+                
                 flg     = float(dirseq_line[4]) - float(dirseq_line[3]) 
                 top     = float(dirseq_line[9]) * rl * 1e6
                 bottom  = flg * T
                 tpm     = top / bottom
+      
                 if(tpm>0):
                     output_line = dirseq_line[:10] + [str(tpm) , str(t_line[1])] + dirseq_line[10:]
                     # Print output line

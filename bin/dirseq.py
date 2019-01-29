@@ -60,12 +60,14 @@ class DirSeq:
 		covs 				= list()
 		num_covs 			= 0
 		removed 			= set()
-		reader 				= csv.reader(io.StringIO(cov_lines), delimiter='\t')
-		keys 				= [x[8] for x in csv.reader(io.StringIO(cov_lines), delimiter='\t') if not x[0]=="all"]
+		reader 				= cov_lines.split(b'\n')
+		keys 				= [x.split(b'\t')[8] for x in reader if not x.split(b'\t')[0]=="all"]
+
 		total 				= float(len(keys))
 		feature_to_covs 	= defaultdict.fromkeys(keys)
 
 		for idx, sline in enumerate(reader):
+			sline = sline.split(b'\t')
 			logging.debug('Parsing output [%f%% complete]' % ((idx / total)*100))
 
 			if sline[0]=='all': break
@@ -74,26 +76,33 @@ class DirSeq:
 			feature_type = sline[2]
 
 			if feature_type not in accepted_feature_types:
+
 				if feat not in removed:
 					del feature_to_covs[feat]
 					removed.add(feat)
+				
 				logging.debug('Skipping feature as it is of type %s' % feature_type)
 				continue
+			
 			if 'product' in sline[8]:
 				description = sline[8].split(';')[-1].split('=')[1]
+			
 			else:
 				description = 'None'
 
 			if len(sline) == 13:
 				num = int(sline[10])
 				cov = num*int(sline[9])
+			
 			elif len(sline) == 10:
 				cov = int(sline[9])
+			
 			else:
 				raise Exception("Unexpected bedtools output line: %s" % line)
 
 			if(feature_to_covs[feat]!=None):
 				feature_to_covs[feat][6].append(cov)
+			
 			else:				
 				feature_to_covs[feat] \
 					= [sline[8][3:].split(';')[0], # Gene
@@ -104,9 +113,11 @@ class DirSeq:
 					   sline[6], # Strand
 					   [cov],
 					   description]
+		
 		logging.info('Parsing output [%f%% complete]' % ((total / total)*100))
 		
 		for key in set(keys):
+		
 			if key in feature_to_covs:
 				feature_to_covs[key][6] = self._calculate_cov(feature_to_covs[key][6], len(feature_to_covs[key][6]))
 		
@@ -124,6 +135,7 @@ class DirSeq:
 		pooled_covs = dict()
 		
 		if len(covs_initial) > 1:
+			
 			for key, entry in covs_initial[0].items():
 				pooled_coverage = str(float(covs_initial[1][key][6]) + float(entry[6]))	
 				
@@ -137,13 +149,13 @@ class DirSeq:
 									covs_initial[1][key][7]]
 		else:
 			pooled_covs = covs_initial[0]
+		
 		return pooled_covs
 
 	def _compile_output(self, covs_fwd, covs_rev, cutoff, null, 
 			   ignore_directions, measure_type, distribution_output): 
 		
 		logging.info('Compiling results')
-		
 		t 		= Tester()
 		total 	= float(len(covs_fwd))
 		header 	= ['gene', 'contig', 'type', 'start', 'end', 'strand']
@@ -152,13 +164,17 @@ class DirSeq:
 		
 		if ignore_directions:
 			header.append('average_coverage')
+		
 		else:
+		
 			if measure_type == self.COUNT_TYPE_COVERAGE:
 				header.append('forward_average_coverage')
 				header.append('reverse_average_coverage')
+		
 			elif measure_type == self.COUNT_TYPE_COUNT:
 				header.append('forward_read_count')
 				header.append('reverse_read_count')
+		
 			header += ['pvalue', 'normalized_read_count', 'directionality']
 		
 		header.append('annotation')
@@ -167,24 +183,30 @@ class DirSeq:
 		output_lines.append(header)
 		
 		if ignore_directions:
-			for feature, forward_line in covs_fwd.iteritems():
+
+			for feature, forward_line in covs_fwd.items():
 				output_line = forward_line[:6] + [forward_line[6], feature]
 				output_lines.append(output_line)
 		else:
-			for idx, (feature, forward_line) in enumerate(covs_fwd.iteritems()):
+			for idx, (feature, forward_line) in enumerate(covs_fwd.items()):
 				logging.debug('Preparing output [%f%% complete]' % ((idx/total)*100))
 				reverse_line = covs_rev[feature]
 				forward_count = float(forward_line[6])	
 				reverse_count = float(reverse_line[6])
 				count_sum = (forward_count + reverse_count)
+			
 				if count_sum>0:
 					directionality = forward_count / count_sum
+			
 				else:
 					directionality = 0
+			
 				directionality_list_all.append(directionality)
 				result = t.binom(float(forward_count), float(reverse_count), cutoff, null)
+				
 				if result:
 					pvalue, normalized_read_count = result
+			
 					if pvalue<=cutoff:
 						directionality_list_sig.append(directionality)
 						output_line = forward_line[:6] + [str(forward_count),
@@ -200,9 +222,11 @@ class DirSeq:
 					= t.kolmogorov_smirnov(directionality_list_sig)
 
 			self._distribution_output(distribution_output, directionality_all_result, directionality_sig_result)
+		
 		return output_lines
 	
 	def _distribution_output(self, distribution_output, directionality_all_result, directionality_sig_result):
+		
 		with open(distribution_output, 'w') as out_io:
 			out_io.write('\t'.join(['Type', 'D', 'pvalue']) + '\n')
 			out_io.write('All distribution result\t' + '\t'.join([str(x) for x in directionality_all_result]) + '\n')
@@ -232,6 +256,7 @@ class DirSeq:
 
 		# Check for the existance of a BAM index file
 		bam_index = bam + self.BAM_INDEX_SUFFIX
+		
 		if not os.path.isfile(bam_index):
 			raise Exception('Bam index file does not exist. Please index the BAM file')
 		
@@ -245,11 +270,15 @@ class DirSeq:
 		# Identifying contigs in feature file but not in BAM file
 		logging.info('Finding contigs with no coverage')
 		bam_contig_set = set()
+		
 		for line in open(bam_contigs.name):
 			bam_contig_set.add(line.split()[0])
+		
 		gff_contig_set = list()
 		lengths		   = dict()
+		
 		for line in open(gff):
+		
 			if line.startswith('##sequence-region'):
 				_, contig, _, length = line.strip().split()
 				gff_contig_set.append(contig)
@@ -261,31 +290,37 @@ class DirSeq:
 		logging.info('Finding featureless contigs')
 		cmd = "grep -v '^#' %s | cut -f1 | sort | uniq | grep -vFw -f /dev/stdin %s | cut -f1" % (gff, bam_contigs.name)
 		logging.info('Command: %s' % (cmd))
-		featureless_contigs = [x for x in subprocess.check_output(cmd, shell=True).strip().split('\n')
+
+		featureless_contigs = [x for x in subprocess.check_output(cmd, shell=True).strip().split(str.encode('\n'))
 				 			   if(x!=self.STAR and x!='')]
 		logging.info('Found %i featureless contigs' % len(featureless_contigs))
 		
 		# Filling in missing contigs
 		with open(bam_contigs.name, "a") as bam_contigs_io:
+		
 			for contig in coverageless_contigs:
 				bam_contigs_io.write('\t'.join([contig, lengths[contig]]) + '\n')
 		
 		# Create dummy entries for featureless contigs and create a "full" GFF file
 		dummy_lines = list()
+		
 		for featureless_contig in featureless_contigs:
 			dummy_lines.append([featureless_contig,
-								'dirseq',
-								'misc_RNA',
-								'1',
-								'2',
-								'.',
-								'+',
-								'0',
-								"ID=%s_dummy_feature" % featureless_contig])
+								b'dirseq',
+								b'misc_RNA',
+								b'1',
+								b'2',
+								b'.',
+								b'+',
+								b'0',
+								b"ID=%s_dummy_feature" % featureless_contig])
 		sorted_gff_file = tempfile.NamedTemporaryFile(suffix='.gff')
+		
 		with tempfile.NamedTemporaryFile(suffix='.gff') as extra_features_file:
+		
 			for dummy_line in dummy_lines:
-				extra_features_file.write('\t'.join(dummy_line) + '\n')
+				extra_features_file.write(b'\t'.join(dummy_line) + b'\n')
+		
 			extra_features_file.flush()
 			cmd = "cat %s %s | bedtools sort -i /dev/stdin -faidx %s > %s" % (extra_features_file.name, nofastagff.name, bam_contigs.name, sorted_gff_file.name)
 			logging.info('Command: %s' % (cmd))
@@ -305,8 +340,10 @@ class DirSeq:
 
 			if measure_type==self.COUNT_TYPE_COUNT:
 				bedtools_type_flag = '-counts'
+		
 			elif measure_type==self.COUNT_TYPE_COVERAGE:
 				bedtools_type_flag = '-hist'
+		
 			else:
 				raise Exception("Measure type not recognised: %s" % (measure_type))
 
@@ -322,13 +359,14 @@ class DirSeq:
 			if forward_reads_only:
 				commands_fwd = [cmdf1]
 				commands_rev = [cmdr1]
+
 			else:
 				commands_fwd = [cmdf1, cmdr2]
 				commands_rev = [cmdf2, cmdr1]
 
 			covs_fwd = self._command_to_parsed(commands_fwd, accepted_feature_types)
 			covs_rev = self._command_to_parsed(commands_rev, accepted_feature_types)
-
+		import IPython ; IPython.embed()
 		output_lines = self._compile_output(covs_fwd, covs_rev, cutoff, null, 
 											ignore_directions, measure_type, 
 											distribution_output)
