@@ -32,7 +32,6 @@ import os
 import logging
 
 ###############################################################################
-
 class Tester:
 	
 	def binom(self, forward_count, reverse_count, cutoff, null):

@@ -153,6 +153,7 @@ class Run:
 
 		tg.main(dirseq_output_lines, # Dirseq output
 				args.rl,
+                args.bam,
 				os.path.join(args.output_directory, self.TPM_FILE))
 
 		logging.info('Done')

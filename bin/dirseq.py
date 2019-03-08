@@ -14,28 +14,23 @@
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
 #                                                                             #
 ###############################################################################
-__author__ 		= "Ben Woodcroft, Joel Boyd"
-__copyright__ 	= "Copyright 2017"
-__credits__ 	= ["Ben Woodcroft", "Joel Boyd"]
-__license__ 	= "GPL3"
-__maintainer__ 	= "Joel Boyd"
-__email__ 		= "joel.boyd near uq.net.au"
-__status__ 		= "Development"
-__version__ 	= "0.0.1"
-###############################################################################
+__author__ = "Ben Woodcroft, Joel Boyd"
+__copyright__ = "Copyright 2017"
+__credits__ = ["Ben Woodcroft", "Joel Boyd"]
+__license__ = "GPL3"
+__maintainer__ = "Joel Boyd"
+__email__ = "joel.boyd near uq.net.au"
+__status__ = "Development"
+__version__ = "0.0.1"
 
-# System imports
 import tempfile
 import os
 import logging
 import subprocess
 import csv
 import io
-
 from tester import Tester
 from collections import defaultdict
-
-###############################################################################
 
 class DirSeq:
 	'''
@@ -56,17 +51,14 @@ class DirSeq:
 
 	def _get_covs(self, cov_lines, accepted_feature_types):
 
-		previous_feature 	= None
-		covs 				= list()
-		num_covs 			= 0
 		removed 			= set()
 		reader 				= cov_lines.split(b'\n')
 		keys 				= [x.split(b'\t')[8] for x in reader if not x.split(b'\t')[0]=="all"]
 		total 				= float(len(keys))
 		feature_to_covs 	= defaultdict.fromkeys(keys)
 
-		for idx, sline in enumerate(reader):
-			sline = sline.split(b'\t')
+		for idx, line in enumerate(reader):
+			sline = line.split(b'\t')
 			logging.debug('Parsing output [%f%% complete]' % ((idx / total)*100))
 
 			if sline[0]=='all': break
